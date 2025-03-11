@@ -8,8 +8,7 @@ import numpy as np
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import BRICS
-import matplotlib.pyplot as plt
-
+import matplotlib.pyplot as plt # Thêm đường dẫn vào sys.path
 
 ##### process medications #####
 # load med data
@@ -535,21 +534,25 @@ for dataset in ["mimic-iii", "mimic-iv"]:
     # files can be downloaded from https://mimic.physionet.org/gettingstarted/dbsetup/
     # please change into your own MIMIC folder
     if dataset == "mimic-iii":
-        med_file = "./input/" + dataset + "/PRESCRIPTIONS.csv"
-        diag_file = "./input/" + dataset + "/DIAGNOSES_ICD.csv"
-        procedure_file = "./input/" + dataset + "/PROCEDURES_ICD.csv"
+        med_file = "./data/input/" + dataset + "/PRESCRIPTIONS.csv"
+        diag_file = "./data/input/" + dataset + "/DIAGNOSES_ICD.csv"
+        procedure_file = "./data/input/" + dataset + "/PROCEDURES_ICD.csv"
+
+        print("Med file path:", os.path.abspath(med_file))
+        print("Exists:", os.path.exists(med_file))
+
     elif dataset == "mimic-iv":
-        med_file = "./input/" + dataset + "/prescriptions.csv"
-        diag_file = "./input/" + dataset + "/diagnoses_icd.csv"
-        procedure_file = "./input/" + dataset + "/procedures_icd.csv"
+        med_file = "./data/input/" + dataset + "/prescriptions.csv"
+        diag_file = "./data/input/" + dataset + "/diagnoses_icd.csv"
+        procedure_file = "./data/input/" + dataset + "/procedures_icd.csv"
 
     # input auxiliary files
     med_structure_file = "./output/" + dataset + "/atc32SMILES.pkl"
-    RXCUI2atc4_file = "./input/RXCUI2atc4.csv"
-    cid2atc6_file = "./input/drug-atc.csv"
-    ndc2RXCUI_file = "./input/ndc2RXCUI.txt"
-    ddi_file = "./input/drug-DDI.csv"
-    drugbankinfo = "./input/drugbank_drugs_info.csv"
+    RXCUI2atc4_file = "./data/input/RXCUI2atc4.csv"
+    cid2atc6_file = "./data/input/drug-atc.csv"
+    ndc2RXCUI_file = "./data/input/ndc2RXCUI.txt"
+    ddi_file = "./data/input/drug-DDI.csv"
+    drugbankinfo = "./data/input/drugbank_drugs_info.csv"
 
     # output files
     output_dir = "./output/" + dataset + "/"
