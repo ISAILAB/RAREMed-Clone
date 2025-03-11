@@ -10,16 +10,21 @@ from rdkit import Chem
 from rdkit.Chem import BRICS
 import matplotlib.pyplot as plt
 
+
 ##### process medications #####
 # load med data
 def med_process(med_file):
-    med_pd = pd.read_csv(med_file, header=0, dtype={"NDC": "category", "GSN": "category"},
-                         names=[column.upper() for column in pd.read_csv(med_file, nrows=0).columns])
+    med_pd = pd.read_csv(
+        med_file,
+        header=0,
+        dtype={"NDC": "category", "GSN": "category"},
+        names=[column.upper() for column in pd.read_csv(med_file, nrows=0).columns],
+    )
     # med_pd = med_pd[med_pd['DRUG_TYPE'] == 'MAIN']
-    med_pd = med_pd[['SUBJECT_ID', 'HADM_ID', 'DRUG', 'NDC']]
+    med_pd = med_pd[["SUBJECT_ID", "HADM_ID", "DRUG", "NDC"]]
 
     med_pd.drop(index=med_pd[med_pd["NDC"] == "0"].index, axis=0, inplace=True)
-    med_pd.ffill(inplace=True)     
+    med_pd.ffill(inplace=True)
     med_pd.dropna(inplace=True)
     med_pd.drop_duplicates(inplace=True)
     med_pd.sort_values(by=["SUBJECT_ID", "HADM_ID"], inplace=True)
@@ -115,11 +120,15 @@ def filter_300_most_med(med_pd):
 
 ##### process diagnosis #####
 def diag_process(diag_file):
-    diag_pd = pd.read_csv(diag_file, header=0, names=[column.upper() for column in pd.read_csv(diag_file, nrows=1).columns])
+    diag_pd = pd.read_csv(
+        diag_file,
+        header=0,
+        names=[column.upper() for column in pd.read_csv(diag_file, nrows=1).columns],
+    )
     if "ICD9_CODE" in diag_pd.columns:
-        diag_pd.rename(columns={'ICD9_CODE':'ICD_CODE'}, inplace=True)
+        diag_pd.rename(columns={"ICD9_CODE": "ICD_CODE"}, inplace=True)
     diag_pd.dropna(inplace=True)
-    diag_pd = diag_pd[['SUBJECT_ID', 'HADM_ID', 'SEQ_NUM', 'ICD_CODE']]
+    diag_pd = diag_pd[["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD_CODE"]]
     diag_pd.drop_duplicates(inplace=True)
     diag_pd.sort_values(by=["SUBJECT_ID", "HADM_ID"], inplace=True)
     diag_pd = diag_pd.reset_index(drop=True)
@@ -128,18 +137,28 @@ def diag_process(diag_file):
         # first, get the number of unique subject_id
         num_subject_id = len(diag_pd["SUBJECT_ID"].unique())
         # second, select the first 10% of the patients
-        diag_pd = diag_pd[diag_pd["SUBJECT_ID"].isin(diag_pd["SUBJECT_ID"].unique()[: int(num_subject_id * 0.1)])]
+        diag_pd = diag_pd[
+            diag_pd["SUBJECT_ID"].isin(
+                diag_pd["SUBJECT_ID"].unique()[: int(num_subject_id * 0.1)]
+            )
+        ]
 
     return diag_pd
 
 
 ##### process procedure #####
 def procedure_process(procedure_file):
-    pro_pd = pd.read_csv(procedure_file, dtype={"ICD9_CODE": "category"}, header=0,
-                         names=[column.upper() for column in pd.read_csv(procedure_file, nrows=1).columns])
+    pro_pd = pd.read_csv(
+        procedure_file,
+        dtype={"ICD9_CODE": "category"},
+        header=0,
+        names=[
+            column.upper() for column in pd.read_csv(procedure_file, nrows=1).columns
+        ],
+    )
     if "ICD9_CODE" in pro_pd.columns:
-        pro_pd.rename(columns={'ICD9_CODE':'ICD_CODE'}, inplace=True)
-    pro_pd = pro_pd[['SUBJECT_ID', 'HADM_ID', 'SEQ_NUM', 'ICD_CODE']]
+        pro_pd.rename(columns={"ICD9_CODE": "ICD_CODE"}, inplace=True)
+    pro_pd = pro_pd[["SUBJECT_ID", "HADM_ID", "SEQ_NUM", "ICD_CODE"]]
     pro_pd.drop_duplicates(inplace=True)
     pro_pd.sort_values(by=["SUBJECT_ID", "HADM_ID", "SEQ_NUM"], inplace=True)
     pro_pd.drop(columns=["SEQ_NUM"], inplace=True)
@@ -154,14 +173,18 @@ def filter_K_diag(diag_pd, K=5):
     # record length of diag_pd
     origin_len = len(diag_pd)
 
-    diag_count = diag_pd.value_counts('ICD_CODE')
-    diag_pd = diag_pd[diag_pd['ICD_CODE'].isin(diag_count[diag_count>K].index)]
+    diag_count = diag_pd.value_counts("ICD_CODE")
+    diag_pd = diag_pd[diag_pd["ICD_CODE"].isin(diag_count[diag_count > K].index)]
     diag_pd = diag_pd.reset_index(drop=True)
 
     # record length of diag_pd
     new_len = len(diag_pd)
-    print('filter diagnosis with less than {} occurrences: {} -> {}'.format(K, origin_len, new_len))
-    filter_flag = (origin_len != new_len)
+    print(
+        "filter diagnosis with less than {} occurrences: {} -> {}".format(
+            K, origin_len, new_len
+        )
+    )
+    filter_flag = origin_len != new_len
     return diag_pd, filter_flag
 
 
@@ -170,15 +193,20 @@ def filter_K_pro(pro_pd, K=5):
     # record length of pro_pd
     origin_len = len(pro_pd)
 
-    pro_count = pro_pd.value_counts('ICD_CODE')
-    pro_pd = pro_pd[pro_pd['ICD_CODE'].isin(pro_count[pro_count>K].index)]
+    pro_count = pro_pd.value_counts("ICD_CODE")
+    pro_pd = pro_pd[pro_pd["ICD_CODE"].isin(pro_count[pro_count > K].index)]
     pro_pd = pro_pd.reset_index(drop=True)
 
     # record length of pro_pd
     new_len = len(pro_pd)
-    print('filter procedure with less than {} occurrences: {} -> {}'.format(K, origin_len, new_len))
-    filter_flag = (origin_len != new_len)
+    print(
+        "filter procedure with less than {} occurrences: {} -> {}".format(
+            K, origin_len, new_len
+        )
+    )
+    filter_flag = origin_len != new_len
     return pro_pd, filter_flag
+
 
 ###### combine three tables #####
 def combine_process(med_pd, diag_pd, pro_pd):
@@ -195,18 +223,16 @@ def combine_process(med_pd, diag_pd, pro_pd):
         combined_key = combined_key.merge(
             pro_pd_key, on=["SUBJECT_ID", "HADM_ID"], how="inner"
         )
-        diag_pd = diag_pd.merge(combined_key, on=['SUBJECT_ID', 'HADM_ID'], how='inner')
-        med_pd = med_pd.merge(combined_key, on=['SUBJECT_ID', 'HADM_ID'], how='inner')
-        pro_pd = pro_pd.merge(combined_key, on=['SUBJECT_ID', 'HADM_ID'], how='inner')
+        diag_pd = diag_pd.merge(combined_key, on=["SUBJECT_ID", "HADM_ID"], how="inner")
+        med_pd = med_pd.merge(combined_key, on=["SUBJECT_ID", "HADM_ID"], how="inner")
+        pro_pd = pro_pd.merge(combined_key, on=["SUBJECT_ID", "HADM_ID"], how="inner")
         diag_pd, filter_flag_diag = filter_K_diag(diag_pd)
         pro_pd, filter_flag_pro = filter_K_pro(pro_pd)
         filter_flag = filter_flag_diag or filter_flag_pro
 
     # flatten and merge
     diag_pd = (
-        diag_pd.groupby(by=["SUBJECT_ID", "HADM_ID"])["ICD_CODE"]
-        .unique()
-        .reset_index()
+        diag_pd.groupby(by=["SUBJECT_ID", "HADM_ID"])["ICD_CODE"].unique().reset_index()
     )
     med_pd = med_pd.groupby(by=["SUBJECT_ID", "HADM_ID"])["ATC3"].unique().reset_index()
     pro_pd = (
@@ -316,38 +342,48 @@ def create_str_token_mapping(df):
     )
     return diag_voc, med_voc, pro_voc
 
+
 # 计算每个visit的权重，流行度越高，权重越低。
-class PatientWeight():
+class PatientWeight:
     def __init__(self, data):
         # 统计ICD_CODE中每个元素出现的次数
-        icd_counts_diag = data['ICD_CODE'].apply(pd.Series).stack().value_counts()
-        weight_diag = 1/icd_counts_diag
+        icd_counts_diag = data["ICD_CODE"].apply(pd.Series).stack().value_counts()
+        weight_diag = 1 / icd_counts_diag
 
         # 计算归一化系数
-        norm_effi =  (icd_counts_diag * weight_diag).values.sum() / icd_counts_diag.values.sum()
+        norm_effi = (
+            icd_counts_diag * weight_diag
+        ).values.sum() / icd_counts_diag.values.sum()
         weight_diag = weight_diag / norm_effi
 
         # 创建一个新的数据框来存储统计结果
-        self.weight_diag_df = pd.DataFrame({'Count': weight_diag.values}, index=weight_diag.index)
+        self.weight_diag_df = pd.DataFrame(
+            {"Count": weight_diag.values}, index=weight_diag.index
+        )
 
         # 统计PRO_CODE中每个元素出现的次数
-        icd_counts_pro = data['PRO_CODE'].apply(pd.Series).stack().value_counts()
-        weight_pro = 1/icd_counts_pro
+        icd_counts_pro = data["PRO_CODE"].apply(pd.Series).stack().value_counts()
+        weight_pro = 1 / icd_counts_pro
 
         # 计算归一化系数
-        norm_effi =  (icd_counts_pro * weight_pro).values.sum() / icd_counts_pro.values.sum()
+        norm_effi = (
+            icd_counts_pro * weight_pro
+        ).values.sum() / icd_counts_pro.values.sum()
         weight_pro = weight_pro / norm_effi
 
         # 创建一个新的数据框来存储统计结果
-        self.weight_pro_df = pd.DataFrame({'Count': weight_pro.values}, index=weight_pro.index)
+        self.weight_pro_df = pd.DataFrame(
+            {"Count": weight_pro.values}, index=weight_pro.index
+        )
 
     def get(self, visit):
-        weight_diag = self.weight_diag_df.loc[visit['ICD_CODE']].values
+        weight_diag = self.weight_diag_df.loc[visit["ICD_CODE"]].values
         # weight_pro = self.weight_pro_df.loc[visit['PRO_CODE']].values
         # get average weight
         # weight = np.concatenate((weight_diag, weight_pro), axis=0)
         # return np.mean(weight)
         return np.max(weight_diag)
+
 
 # create final records
 def create_patient_record(df, diag_voc, med_voc, pro_voc):
@@ -369,6 +405,7 @@ def create_patient_record(df, diag_voc, med_voc, pro_voc):
         records.append(patient)
     dill.dump(obj=records, file=open(ehr_sequence_file, "wb"))
     return records, visit_weights
+
 
 # get ddi matrix
 def get_ddi_matrix(records, med_voc, ddi_file):
@@ -444,6 +481,7 @@ def get_ddi_matrix(records, med_voc, ddi_file):
 
     return ddi_adj
 
+
 def cal_ddi_rate_score(records, ddi_adj):
     # ddi rate
     all_cnt = 0
@@ -458,8 +496,8 @@ def cal_ddi_rate_score(records, ddi_adj):
                     all_cnt += 1
                     if ddi_adj[med_i, med_j] == 1 or ddi_adj[med_j, med_i] == 1:
                         dd_cnt += 1
-    ddi_rate_score = dd_cnt / all_cnt if all_cnt > 0 else 0 
-    print(f'{ddi_rate_score=}')
+    ddi_rate_score = dd_cnt / all_cnt if all_cnt > 0 else 0
+    print(f"{ddi_rate_score=}")
     return ddi_rate_score
 
 
@@ -490,20 +528,20 @@ def get_ddi_mask(atc42SMLES, med_voc):
             ddi_matrix[i, fracSet.index(frac)] = 1
     return ddi_matrix, fracSet
 
-for dataset in ['mimic-iii', 'mimic-iv']:
-# for dataset in ['mimic-iv']:
+
+for dataset in ["mimic-iii", "mimic-iv"]:
+    # for dataset in ['mimic-iv']:
     print("-" * 10, "processing dataset: ", dataset, "-" * 10)
     # files can be downloaded from https://mimic.physionet.org/gettingstarted/dbsetup/
     # please change into your own MIMIC folder
-    if dataset == 'mimic-iii':
+    if dataset == "mimic-iii":
         med_file = "./input/" + dataset + "/PRESCRIPTIONS.csv"
         diag_file = "./input/" + dataset + "/DIAGNOSES_ICD.csv"
         procedure_file = "./input/" + dataset + "/PROCEDURES_ICD.csv"
-    elif dataset == 'mimic-iv':
+    elif dataset == "mimic-iv":
         med_file = "./input/" + dataset + "/prescriptions.csv"
         diag_file = "./input/" + dataset + "/diagnoses_icd.csv"
         procedure_file = "./input/" + dataset + "/procedures_icd.csv"
-
 
     # input auxiliary files
     med_structure_file = "./output/" + dataset + "/atc32SMILES.pkl"
@@ -512,9 +550,9 @@ for dataset in ['mimic-iii', 'mimic-iv']:
     ndc2RXCUI_file = "./input/ndc2RXCUI.txt"
     ddi_file = "./input/drug-DDI.csv"
     drugbankinfo = "./input/drugbank_drugs_info.csv"
-    
+
     # output files
-    output_dir = './output/' + dataset + '/'
+    output_dir = "./output/" + dataset + "/"
     os.makedirs(output_dir, exist_ok=True)
 
     ddi_adjacency_file = output_dir + "/ddi_A_final.pkl"
@@ -574,11 +612,10 @@ for dataset in ['mimic-iii', 'mimic-iv']:
     # get ddi_mask_H
     ddi_mask_H, fracSet = get_ddi_mask(atc3toSMILES, med_voc)
     dill.dump(ddi_mask_H, open(ddi_mask_H_file, "wb"))
-    dill.dump(fracSet, open(substructure_smiles_file, 'wb'))
+    dill.dump(fracSet, open(substructure_smiles_file, "wb"))
 
     # plt.hist(visit_weights, bins=100, log=True)
     # plt.ylabel('Number of visits')
     # plt.xlabel('Weight of visits')
     # plt.title('Distribution of visit weights')
     # plt.show()
-
