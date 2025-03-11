@@ -3,8 +3,8 @@ data/input/mimic-iv/*
 data/input/drug-DDI.csv
 data/input/drugbank_drugs_info.csv
 
-data/output/mimic-iii/*
-data/output/mimic-iv/*
+output/mimic-iii/*
+output/mimic-iv/*
 
 src/log/
 */__pycache__/
