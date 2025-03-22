@@ -121,6 +121,7 @@ optional arguments:
 Example:
 ```bash
 python main_RAREMed.py -nsp -mask    # pretrain and train
+python main_RAREMed.py -nsp -mask --cuda 0 # Correct one
 python main_RAREMed.py -t -l=log0    # test
 ```
 

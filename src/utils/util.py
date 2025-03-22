@@ -1,6 +1,12 @@
 import os
 import logging
-from sklearn.metrics import jaccard_score, roc_auc_score, precision_score, f1_score, average_precision_score
+from sklearn.metrics import (
+    jaccard_score,
+    roc_auc_score,
+    precision_score,
+    f1_score,
+    average_precision_score,
+)
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
@@ -13,7 +19,12 @@ from collections import defaultdict
 import torch
 import random
 from scipy.stats import linregress
-warnings.filterwarnings('ignore')
+
+warnings.filterwarnings("ignore")
+
+
+import os
+
 
 def get_model_path(log_directory_path, log_dir_prefix):
     """
@@ -24,26 +35,46 @@ def get_model_path(log_directory_path, log_dir_prefix):
     log_dir_prefix (str): Prefix of the log directory containing the desired model file.
 
     Returns:
-    str: Path to the most recent model file.
+    str: Path to the most recent model file or None if no model is found.
     """
 
     # Get a list of all logs in the directory
     log_files = os.listdir(log_directory_path)
 
     # Select the log directory that starts with the specified prefix
-    log_dir_prefix += '_'
-    selected_log_directory = [log for log in log_files if log.startswith(log_dir_prefix)][0]
+    log_dir_prefix += "_"
+    selected_log_directories = [
+        log for log in log_files if log.startswith(log_dir_prefix)
+    ]
+
+    if not selected_log_directories:
+        print(
+            f"❌ Không tìm thấy thư mục nào có prefix '{log_dir_prefix}' trong {log_directory_path}"
+        )
+        return None
+
+    # Chọn thư mục log mới nhất (nếu có nhiều thư mục)
+    selected_log_directory = sorted(selected_log_directories)[-1]
 
     # Get a list of all files in the selected log directory
-    file_list = os.listdir(os.path.join(log_directory_path, selected_log_directory))
+    model_dir_path = os.path.join(log_directory_path, selected_log_directory)
+    file_list = os.listdir(model_dir_path)
 
     # Select the model file from the file list
-    model_file = [file for file in file_list if file.endswith('.model')][0]
+    model_files = [file for file in file_list if file.endswith(".model")]
+
+    if not model_files:
+        print(f"❌ Không tìm thấy file '.model' nào trong thư mục {model_dir_path}")
+        return None
+
+    # Chọn file model mới nhất (nếu có nhiều file)
+    model_file = sorted(model_files)[-1]
 
     # Define the path to the selected model file
-    model_file_path = os.path.join(log_directory_path, selected_log_directory, model_file)
+    model_file_path = os.path.join(model_dir_path, model_file)
 
     return model_file_path
+
 
 def get_pretrained_model_path(log_directory_path, log_dir_prefix):
     """
@@ -61,39 +92,48 @@ def get_pretrained_model_path(log_directory_path, log_dir_prefix):
     log_files = os.listdir(log_directory_path)
 
     # Select the log directory that starts with the specified prefix
-    log_dir_prefix += '_'
-    selected_log_directory = [log for log in log_files if log.startswith(log_dir_prefix)][0]
+    log_dir_prefix += "_"
+    selected_log_directory = [
+        log for log in log_files if log.startswith(log_dir_prefix)
+    ][0]
 
     # Get a list of all files in the selected log directory
     file_list = os.listdir(os.path.join(log_directory_path, selected_log_directory))
 
     # Select the model file from the file list
-    model_file = [file for file in file_list if file.endswith('.pretrained_model')][0]
+    model_file = [file for file in file_list if file.endswith(".pretrained_model")][0]
 
     # Define the path to the selected model file
-    model_file_path = os.path.join(log_directory_path, selected_log_directory, model_file)
+    model_file_path = os.path.join(
+        log_directory_path, selected_log_directory, model_file
+    )
 
     return model_file_path
+
 
 def create_log_id(dir_path):
     existing_id = []
     os.makedirs(dir_path, exist_ok=True)
     for x in os.listdir(dir_path):
         try:
-            x = int(x.split('_')[0][3:])
+            x = int(x.split("_")[0][3:])
             existing_id.append(x)
         except Exception:
-            pass    
+            pass
     if existing_id:
         return max(existing_id) + 1
     else:
         return 0
 
 
-def logging_config(folder=None, name=None, note=None,
-                   level=logging.DEBUG,
-                   console_level=logging.DEBUG,
-                   no_console=True):
+def logging_config(
+    folder=None,
+    name=None,
+    note=None,
+    level=logging.DEBUG,
+    console_level=logging.DEBUG,
+    no_console=True,
+):
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -104,10 +144,10 @@ def logging_config(folder=None, name=None, note=None,
         logpath = os.path.join(folder, name + "_" + note + ".log")
     else:
         logpath = os.path.join(folder, name + ".log")
-    print("All logs will be saved to %s" %logpath)
+    print("All logs will be saved to %s" % logpath)
 
     logging.root.setLevel(level)
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     logfile = logging.FileHandler(logpath)
     logfile.setLevel(level)
     logfile.setFormatter(formatter)
@@ -119,26 +159,33 @@ def logging_config(folder=None, name=None, note=None,
         logconsole.setFormatter(formatter)
         logging.root.addHandler(logconsole)
     return folder
-    
+
 
 def get_n_params(model):
-    pp=0
+    pp = 0
     for p in list(model.parameters()):
-        nn=1
+        nn = 1
         for s in list(p.size()):
-            nn = nn*s
+            nn = nn * s
         pp += nn
     return pp
+
 
 # use the same metric from DMNC
 def llprint(message):
     sys.stdout.write(message)
     sys.stdout.flush()
 
+
 def transform_split(X, Y):
-    x_train, x_eval, y_train, y_eval = train_test_split(X, Y, train_size=2/3, random_state=1203)
-    x_eval, x_test, y_eval, y_test = train_test_split(x_eval, y_eval, test_size=0.5, random_state=1203)
+    x_train, x_eval, y_train, y_eval = train_test_split(
+        X, Y, train_size=2 / 3, random_state=1203
+    )
+    x_eval, x_test, y_eval, y_test = train_test_split(
+        x_eval, y_eval, test_size=0.5, random_state=1203
+    )
     return x_train, x_eval, x_test, y_train, y_eval, y_test
+
 
 def sequence_output_process(output_logits, filter_token):
     pind = np.argsort(output_logits, axis=-1)[:, ::-1]
@@ -159,7 +206,9 @@ def sequence_output_process(output_logits, filter_token):
     y_pred_prob_tmp = []
     for idx, item in enumerate(out_list):
         y_pred_prob_tmp.append(output_logits[idx, item])
-    sorted_predict = [x for _, x in sorted(zip(y_pred_prob_tmp, out_list), reverse=True)]
+    sorted_predict = [
+        x for _, x in sorted(zip(y_pred_prob_tmp, out_list), reverse=True)
+    ]
     return out_list, sorted_predict
 
 
@@ -202,25 +251,32 @@ def multi_label_metric(y_gt, y_pred, y_prob):
             if average_prc[idx] + average_recall[idx] == 0:
                 score.append(0)
             else:
-                score.append(2*average_prc[idx]*average_recall[idx] / (average_prc[idx] + average_recall[idx]))
+                score.append(
+                    2
+                    * average_prc[idx]
+                    * average_recall[idx]
+                    / (average_prc[idx] + average_recall[idx])
+                )
         return score
 
     def f1(y_gt, y_pred):
         all_micro = []
         for b in range(y_gt.shape[0]):
-            all_micro.append(f1_score(y_gt[b], y_pred[b], average='macro'))
+            all_micro.append(f1_score(y_gt[b], y_pred[b], average="macro"))
         return np.mean(all_micro)
 
     def roc_auc(y_gt, y_prob):
         all_micro = []
         for b in range(len(y_gt)):
-            all_micro.append(roc_auc_score(y_gt[b], y_prob[b], average='macro'))
+            all_micro.append(roc_auc_score(y_gt[b], y_prob[b], average="macro"))
         return np.mean(all_micro)
 
     def precision_auc(y_gt, y_prob):
         all_micro = []
         for b in range(len(y_gt)):
-            all_micro.append(average_precision_score(y_gt[b], y_prob[b], average='macro'))
+            all_micro.append(
+                average_precision_score(y_gt[b], y_prob[b], average="macro")
+            )
         return np.mean(all_micro)
 
     def precision_at_k(y_gt, y_prob, k=3):
@@ -258,6 +314,7 @@ def multi_label_metric(y_gt, y_pred, y_prob):
 
     return ja, prauc, np.mean(avg_prc), np.mean(avg_recall), np.mean(avg_f1)
 
+
 def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
     def jaccard_ips(y_gt, y_pred, IPS_weight):
         score = []
@@ -268,10 +325,10 @@ def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
             union = list(set(out_list) | set(target))
             inner_score = IPS_weight[inter].sum()
             outer_score = IPS_weight[union].sum()
-            jaccard_IPS = inner_score / outer_score if outer_score>0 else 0
+            jaccard_IPS = inner_score / outer_score if outer_score > 0 else 0
             score.append(jaccard_IPS)
         return np.mean(score)
-    
+
     def average_prc_ips(y_gt, y_pred, IPS_weight):
         score = []
         for b in range(y_gt.shape[0]):
@@ -280,7 +337,7 @@ def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
             inter = list(set(out_list) & set(target))
             inner_score = IPS_weight[inter].sum()
             outer_score = IPS_weight[out_list].sum()
-            precision_IPS = inner_score / outer_score if outer_score>0 else 0
+            precision_IPS = inner_score / outer_score if outer_score > 0 else 0
             score.append(precision_IPS)
         return score
 
@@ -292,10 +349,10 @@ def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
             inter = list(set(out_list) & set(target))
             inner_score = IPS_weight[inter].sum()
             outer_score = IPS_weight[target].sum()
-            recall_IPS = inner_score / outer_score if outer_score>0 else 0
+            recall_IPS = inner_score / outer_score if outer_score > 0 else 0
             score.append(recall_IPS)
         return score
-    
+
     def average_popularity(y_pred, medicine_pop):
         pop = []
         for b in range(y_pred.shape[0]):
@@ -304,9 +361,9 @@ def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
             pop.append(avg_pop)
         return np.mean(pop)
 
-    medicine_pop = pd.read_csv(medicine_pop_path, header=None, index_col=0)  
-    medicine_pop = medicine_pop.iloc[:,0]
-    IPS_weight = medicine_pop.map(lambda x:1/x)
+    medicine_pop = pd.read_csv(medicine_pop_path, header=None, index_col=0)
+    medicine_pop = medicine_pop.iloc[:, 0]
+    IPS_weight = medicine_pop.map(lambda x: 1 / x)
     # IPS_weight[:]=1
 
     # jaccard
@@ -321,7 +378,7 @@ def pop_metric(y_gt, y_pred, y_prob, medicine_pop_path):
 
 def ddi_rate_score(record, path=None):
     # ddi rate
-    ddi_A = dill.load(open(path, 'rb'))
+    ddi_A = dill.load(open(path, "rb"))
     all_cnt = 0
     dd_cnt = 0
     for patient in record:
@@ -358,41 +415,51 @@ def ddi_rate_score(record, path=None):
 #     # calculate the correlation between grouped_mean_jac and x
 #     corr = -np.corrcoef(grouped_mean_jac, np.arange(len(grouped_mean_jac)))[0, 1]
 #     slope_corr = -linregress(np.arange(len(grouped_mean_jac)), grouped_mean_jac)[0]
-    
+
 #     logging.info(f'''weighted_Jaccard: {weighted_jaccard:.4}, corr: {corr:.4}, slope_corr: {slope_corr:.4}''')
 #     logging.info(f'''grouped_mean_jac: {grouped_mean_jac}''')
 #     logging.info(f'''grouped_mean_jac_std: {grouped_mean_jac_std:.4}''')
 #     return weighted_jaccard, corr, slope_corr, grouped_mean_jac
+
 
 def get_grouped_metrics(ja, visit_weights, group_num=5):
     # weighted jaccard
     weighted_jaccard = np.average(ja, weights=visit_weights)
 
     # create a dataframe with visit_weights and jaccard
-    visit_weights_df = pd.DataFrame({'visit_weights': visit_weights, 'jaccard': ja})
-    visit_weights_df.sort_values(by='visit_weights', inplace=True)
+    visit_weights_df = pd.DataFrame({"visit_weights": visit_weights, "jaccard": ja})
+    visit_weights_df.sort_values(by="visit_weights", inplace=True)
     visit_weights_df.reset_index(drop=True, inplace=True)
 
-    sorted_jaccard = visit_weights_df['jaccard'].values
+    sorted_jaccard = visit_weights_df["jaccard"].values
 
-    K=int(len(sorted_jaccard)/group_num)+1
-    grouped_mean_jac = [sorted_jaccard[i:i+K].mean() for i in range(0,int(len(sorted_jaccard)),K)]
-    grouped_std_jac = [sorted_jaccard[i:i+K].std() for i in range(0,int(len(sorted_jaccard)),K)]
-    grouped_n = [len(sorted_jaccard[i:i+K]) for i in range(0,int(len(sorted_jaccard)),K)]
-    grouped_se = [std/np.sqrt(n) for std, n in zip(grouped_std_jac, grouped_n)]
+    K = int(len(sorted_jaccard) / group_num) + 1
+    grouped_mean_jac = [
+        sorted_jaccard[i : i + K].mean() for i in range(0, int(len(sorted_jaccard)), K)
+    ]
+    grouped_std_jac = [
+        sorted_jaccard[i : i + K].std() for i in range(0, int(len(sorted_jaccard)), K)
+    ]
+    grouped_n = [
+        len(sorted_jaccard[i : i + K]) for i in range(0, int(len(sorted_jaccard)), K)
+    ]
+    grouped_se = [std / np.sqrt(n) for std, n in zip(grouped_std_jac, grouped_n)]
     grouped_mean_jac = [round(i, 4) for i in grouped_mean_jac]
     grouped_std_jac = [round(i, 4) for i in grouped_std_jac]
     grouped_se = [round(i, 4) for i in grouped_se]
     # calculate the correlation between grouped_mean_jac and x
     corr = -np.corrcoef(grouped_mean_jac, np.arange(len(grouped_mean_jac)))[0, 1]
     slope_corr = -linregress(np.arange(len(grouped_mean_jac)), grouped_mean_jac)[0]
-    
-    logging.info(f'''weighted_Jaccard: {weighted_jaccard:.4}, corr: {corr:.4}, slope_corr: {slope_corr:.4}''')
-    logging.info(f'''grouped_mean_jac: {grouped_mean_jac}''')
-    logging.info(f'''grouped_std_jac: {grouped_std_jac}''')
-    logging.info(f'''grouped_n: {grouped_n}''')
-    logging.info(f'''grouped_se: {grouped_se}''')
+
+    logging.info(
+        f"""weighted_Jaccard: {weighted_jaccard:.4}, corr: {corr:.4}, slope_corr: {slope_corr:.4}"""
+    )
+    logging.info(f"""grouped_mean_jac: {grouped_mean_jac}""")
+    logging.info(f"""grouped_std_jac: {grouped_std_jac}""")
+    logging.info(f"""grouped_n: {grouped_n}""")
+    logging.info(f"""grouped_se: {grouped_se}""")
     return weighted_jaccard, corr, slope_corr, grouped_mean_jac
+
 
 def resample_data(records):
     resampled_data = []
@@ -403,8 +470,9 @@ def resample_data(records):
     while len(resampled_data) < len(records):
         random_index = random.choices(range(len(records)), probabilities)[0]
         resampled_data.append(records[random_index])
-    
+
     return resampled_data
+
 
 def create_atoms(mol, atom_dict):
     """Transform the atom types in a molecule (e.g., H, C, and O)
@@ -414,9 +482,10 @@ def create_atoms(mol, atom_dict):
     atoms = [a.GetSymbol() for a in mol.GetAtoms()]
     for a in mol.GetAromaticAtoms():
         i = a.GetIdx()
-        atoms[i] = (atoms[i], 'aromatic')
+        atoms[i] = (atoms[i], "aromatic")
     atoms = [atom_dict[a] for a in atoms]
     return np.array(atoms)
+
 
 def create_ijbonddict(mol, bond_dict):
     """Create a dictionary, in which each key is a node ID
@@ -431,8 +500,8 @@ def create_ijbonddict(mol, bond_dict):
         i_jbond_dict[j].append((i, bond))
     return i_jbond_dict
 
-def extract_fingerprints(radius, atoms, i_jbond_dict,
-                         fingerprint_dict, edge_dict):
+
+def extract_fingerprints(radius, atoms, i_jbond_dict, fingerprint_dict, edge_dict):
     """Extract the fingerprints from a molecular graph
     based on Weisfeiler-Lehman algorithm.
     """
@@ -483,27 +552,28 @@ def buildMPNN(molecule, med_voc, radius=1, device=None):
 
         smilesList = list(molecule[atc3])
         """Create each data with the above defined functions."""
-        counter = 0 # counter how many drugs are under that ATC-3
+        counter = 0  # counter how many drugs are under that ATC-3
         for smiles in smilesList:
             try:
                 mol = Chem.AddHs(Chem.MolFromSmiles(smiles))
                 atoms = create_atoms(mol, atom_dict)
                 molecular_size = len(atoms)
                 i_jbond_dict = create_ijbonddict(mol, bond_dict)
-                fingerprints = extract_fingerprints(radius, atoms, i_jbond_dict,
-                                                    fingerprint_dict, edge_dict)
+                fingerprints = extract_fingerprints(
+                    radius, atoms, i_jbond_dict, fingerprint_dict, edge_dict
+                )
                 adjacency = Chem.GetAdjacencyMatrix(mol)
                 # if fingerprints.shape[0] == adjacency.shape[0]:
                 for _ in range(adjacency.shape[0] - fingerprints.shape[0]):
                     fingerprints = np.append(fingerprints, 1)
-            
+
                 fingerprints = torch.LongTensor(fingerprints).to(device)
                 adjacency = torch.FloatTensor(adjacency).to(device)
                 MPNNSet.append((fingerprints, adjacency, molecular_size))
                 counter += 1
             except:
                 continue
-        
+
         average_index.append(counter)
 
         """Transform the above each data of numpy
@@ -524,18 +594,18 @@ def buildMPNN(molecule, med_voc, radius=1, device=None):
 
     return MPNNSet, N_fingerprint, torch.FloatTensor(average_projection)
 
+
 # COGNet
 def sequence_metric_v2(y_gt, y_pred, y_label):
     def average_prc(y_gt, y_label):
         score = []
         for b in range(y_gt.shape[0]):
-            target = np.where(y_gt[b]==1)[0]
+            target = np.where(y_gt[b] == 1)[0]
             out_list = y_label[b]
             inter = list(set(out_list) & set(target))
             prc_score = 0 if len(out_list) == 0 else len(inter) / len(out_list)
             score.append(prc_score)
         return score
-
 
     def average_recall(y_gt, y_label):
         score = []
@@ -547,16 +617,19 @@ def sequence_metric_v2(y_gt, y_pred, y_label):
             score.append(recall_score)
         return score
 
-
     def average_f1(average_prc, average_recall):
         score = []
         for idx in range(len(average_prc)):
             if (average_prc[idx] + average_recall[idx]) == 0:
                 score.append(0)
             else:
-                score.append(2*average_prc[idx]*average_recall[idx] / (average_prc[idx] + average_recall[idx]))
+                score.append(
+                    2
+                    * average_prc[idx]
+                    * average_recall[idx]
+                    / (average_prc[idx] + average_recall[idx])
+                )
         return score
-
 
     def jaccard(y_gt, y_label):
         score = []
@@ -572,19 +645,21 @@ def sequence_metric_v2(y_gt, y_pred, y_label):
     def f1(y_gt, y_pred):
         all_micro = []
         for b in range(y_gt.shape[0]):
-            all_micro.append(f1_score(y_gt[b], y_pred[b], average='macro'))
+            all_micro.append(f1_score(y_gt[b], y_pred[b], average="macro"))
         return np.mean(all_micro)
 
     def roc_auc(y_gt, y_pred_prob):
         all_micro = []
         for b in range(len(y_gt)):
-            all_micro.append(roc_auc_score(y_gt[b], y_pred_prob[b], average='macro'))
+            all_micro.append(roc_auc_score(y_gt[b], y_pred_prob[b], average="macro"))
         return np.mean(all_micro)
 
     def precision_auc(y_gt, y_prob):
         all_micro = []
         for b in range(len(y_gt)):
-            all_micro.append(average_precision_score(y_gt[b], y_prob[b], average='macro'))
+            all_micro.append(
+                average_precision_score(y_gt[b], y_prob[b], average="macro")
+            )
         return np.mean(all_micro)
 
     def precision_at_k(y_gt, y_prob_label, k):
@@ -596,6 +671,7 @@ def sequence_metric_v2(y_gt, y_pred, y_label):
                     TP += 1
             precision += TP / k
         return precision / len(y_gt)
+
     # try:
     #     auc = roc_auc(y_gt, y_prob)
     # except ValueError:
@@ -612,27 +688,43 @@ def sequence_metric_v2(y_gt, y_pred, y_label):
 
     return ja, np.mean(avg_prc), np.mean(avg_recall), np.mean(avg_f1)
 
-def output_flatten(labels, logits, seq_length, m_length_matrix, med_num, END_TOKEN, device, training=True, testing=False, max_len=20):
-    '''
+
+def output_flatten(
+    labels,
+    logits,
+    seq_length,
+    m_length_matrix,
+    med_num,
+    END_TOKEN,
+    device,
+    training=True,
+    testing=False,
+    max_len=20,
+):
+    """
     labels: [batch_size, visit_num, medication_num]
     logits: [batch_size, visit_num, max_med_num, medication_vocab_size]
-    '''
+    """
     # 将最终多个维度的结果展开
     batch_size, max_seq_length = labels.size()[:2]
     assert max_seq_length == max(seq_length)
     whole_seqs_num = seq_length.sum().item()
     if training:
-        whole_med_sum = sum([sum(buf) for buf in m_length_matrix]) + whole_seqs_num # 因为每一个seq后面会多一个END_TOKEN
+        whole_med_sum = (
+            sum([sum(buf) for buf in m_length_matrix]) + whole_seqs_num
+        )  # 因为每一个seq后面会多一个END_TOKEN
 
         # 将结果展开，然后用库函数进行计算
         labels_flatten = torch.empty(whole_med_sum).to(device)
         logits_flatten = torch.empty(whole_med_sum, med_num).to(device)
 
         start_idx = 0
-        for i in range(batch_size): # 每个batch
+        for i in range(batch_size):  # 每个batch
             for j in range(seq_length[i]):  # seq_length[i]指这个batch对应的seq数目
-                for k in range(m_length_matrix[i][j]+1):  # m_length_matrix[i][j]对应seq中med的数目
-                    if k==m_length_matrix[i][j]:    # 最后一个label指定为END_TOKEN
+                for k in range(
+                    m_length_matrix[i][j] + 1
+                ):  # m_length_matrix[i][j]对应seq中med的数目
+                    if k == m_length_matrix[i][j]:  # 最后一个label指定为END_TOKEN
                         labels_flatten[start_idx] = END_TOKEN
                     else:
                         labels_flatten[start_idx] = labels[i, j, k]
@@ -645,14 +737,20 @@ def output_flatten(labels, logits, seq_length, m_length_matrix, med_num, END_TOK
         logits_flatten = []
 
         start_idx = 0
-        for i in range(batch_size): # 每个batch
+        for i in range(batch_size):  # 每个batch
             for j in range(seq_length[i]):  # seq_length[i]指这个batch对应的seq数目
-                labels_flatten.append(labels[i,j,:m_length_matrix[i][j]].detach().cpu().numpy())
-                
+                labels_flatten.append(
+                    labels[i, j, : m_length_matrix[i][j]].detach().cpu().numpy()
+                )
+
                 if testing:
-                    logits_flatten.append(logits[j])  # beam search目前直接给出了预测结果
+                    logits_flatten.append(
+                        logits[j]
+                    )  # beam search目前直接给出了预测结果
                 else:
-                    logits_flatten.append(logits[i,j,:max_len,:].detach().cpu().numpy())     # 注意这里手动定义了max_len
+                    logits_flatten.append(
+                        logits[i, j, :max_len, :].detach().cpu().numpy()
+                    )  # 注意这里手动定义了max_len
                 # cur_label = []
                 # cur_seq_length = []
                 # for k in range(m_length_matrix[i][j]+1):  # m_length_matrix[i][j]对应seq中med的数目
@@ -666,13 +764,13 @@ def output_flatten(labels, logits, seq_length, m_length_matrix, med_num, END_TOK
 
 
 def print_result(label, prediction):
-    '''
+    """
     label: [real_med_num, ]
     logits: [20, med_vocab_size]
-    '''
+    """
     label_text = " ".join([str(x) for x in label])
     predict_text = " ".join([str(x) for x in prediction])
-    
+
     return "[GT]\t{}\n[PR]\t{}\n\n".format(label_text, predict_text)
 
 
@@ -694,8 +792,8 @@ def buildPrjSmiles(molecule, med_voc, device="cpu:0"):
                 smiles_all.append(smiles)
                 counter += 1
             else:
-                print('[SMILES]', smiles)
-                print('[Error] Invalid smiles')
+                print("[SMILES]", smiles)
+                print("[Error] Invalid smiles")
         average_index.append(counter)
 
         """Transform the above each data of numpy
@@ -708,7 +806,7 @@ def buildPrjSmiles(molecule, med_voc, device="cpu:0"):
     average_projection = np.zeros((n_row, n_col))
     col_counter = 0
     for i, item in enumerate(average_index):
-        average_projection[i, col_counter: col_counter + item] = 1 / item
+        average_projection[i, col_counter : col_counter + item] = 1 / item
         col_counter += item
 
     print("Smiles Num:{}".format(len(smiles_all)))
