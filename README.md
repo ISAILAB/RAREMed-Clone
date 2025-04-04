@@ -40,7 +40,9 @@ If this work helps you, please kindly cite our papers:
 3. Activate the newly created environment.
 
    ```bash
+   source ~/miniconda3/bin/activate
    conda activate RAREMed
+conda activate RAREMed
    ```
 
 4. Install the required modules.
@@ -123,6 +125,7 @@ Example:
 python main_RAREMed.py -nsp -mask    # pretrain and train
 python main_RAREMed.py -nsp -mask --cuda 0 # Correct one
 python main_RAREMed.py -t -l=log0    # test
+python main_RAREMed.py --log_dir_prefix log17 --pretrain_prefix log17 --pretrain_mask --test # print output
 ```
 
 For Baselines:

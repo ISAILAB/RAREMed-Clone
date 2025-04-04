@@ -22,39 +22,212 @@ import math
 #         x = x + self.embeddings(pos).expand_as(x)
 #         return x
 
+# Ngang theo chiều d_model, mỗi kênh sẽ học một positional encoding riêng
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout(p=dropout)
+#         # self.dropout = nn.Dropout1d(p=dropout)
+#         self.conv1d = nn.Conv1d(
+#             in_channels=d_model,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             groups=d_model,
+#             # bias=False,
+#         )
+
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+
+#     def forward(self, x):
+#         x_pos = x.permute(0, 2, 1)
+#         x_pos = self.conv1d(x_pos)
+#         x_pos = x_pos.permute(0, 2, 1)
+
+#         x = x + x_pos
+#         return self.dropout(x)
+
+
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout1d(p=dropout)
+
+#         self.conv1d = nn.Conv1d(
+#             in_channels=1,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             bias=False,
+#         )
+
+#         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+
+#     def forward(self, x):
+#         batch_size, seq_length, d_model = x.shape
+
+#         origin = x
+
+#         x = x.view(batch_size * seq_length, 1, d_model)
+
+#         x = self.conv1d(x)
+
+#         x = self.global_avg_pool(x)
+
+#         x = x.view(batch_size, seq_length, d_model)
+
+#         x = origin + x
+
+#         return self.dropout(x)
+
+
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout1d(p=dropout)
+
+#         self.conv1d = nn.Conv1d(
+#             in_channels=1,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             bias=False,
+#         )
+
+#         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+
+#         self.embeddings = nn.Embedding(max_len, d_model)
+
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+#         self.embeddings.weight.data.uniform_(-initrange, initrange)
+
+#     def forward(self, x):
+#         batch_size, seq_length, d_model = x.shape
+
+#         pos = (
+#             torch.arange(0, seq_length, device=x.device).int().unsqueeze(0)
+#         )
+#         pos_embed = self.embeddings(pos).expand(
+#             batch_size, seq_length, d_model
+#         )
+
+#         x_reshaped = x.view(batch_size * seq_length, 1, d_model)
+#         conv_out = self.conv1d(x_reshaped)
+#         conv_out = self.global_avg_pool(conv_out)
+#         conv_out = conv_out.view(batch_size, seq_length, d_model)
+
+#         out = conv_out + pos_embed
+
+#         return self.dropout(out)
+
 
 class LearnablePositionalEncoding(nn.Module):
     def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
         super(LearnablePositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout1d(p=dropout)
 
-        # 1D Convolution với padding 'same' để giữ nguyên kích thước đầu vào
         self.conv1d = nn.Conv1d(
-            in_channels=d_model,
+            in_channels=1,
             out_channels=d_model,
             kernel_size=kernel_size,
             padding=kernel_size // 2,
-            groups=d_model,
-        )  # Nhóm để mỗi kênh xử lý riêng
+            # bias=False,
+        )
 
-        # Khởi tạo trọng số như Embedding
+        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+
+        # self.embeddings = nn.Embedding(max_len, d_model)
+
         initrange = 0.1
         self.conv1d.weight.data.uniform_(-initrange, initrange)
+        # self.embeddings.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, x):
-        """
-        x có shape: (batch_size, seq_len, d_model)
-        """
-        # Chuyển từ (batch, seq_len, d_model) → (batch, d_model, seq_len) để phù hợp với Conv1d
-        x = x.permute(0, 2, 1)
+        batch_size, seq_length, d_model = x.shape
 
-        # Áp dụng Conv1D để học positional encoding
-        x = self.conv1d(x)
+        # pos = torch.arange(0, seq_length, device=x.device).int().unsqueeze(0)
+        # pos_embed = self.embeddings(pos).expand(batch_size, seq_length, d_model)
 
-        # Chuyển lại thành (batch, seq_len, d_model)
-        x = x.permute(0, 2, 1)
+        x_reshaped = x.view(batch_size * seq_length, 1, d_model)
+        conv_out = self.conv1d(x_reshaped)
+        conv_out = self.global_avg_pool(conv_out)
+        conv_out = conv_out.view(batch_size, seq_length, d_model)
 
-        return self.dropout(x)
+        x_reshaped_2 = conv_out.view(batch_size * seq_length, 1, d_model)
+        conv_out_2 = self.conv1d(x_reshaped_2)
+        conv_out_2 = self.global_avg_pool(conv_out_2)
+        conv_out_2 = conv_out_2.view(batch_size, seq_length, d_model)
+
+        out = conv_out + conv_out_2
+
+        return self.dropout(out)
+
+
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         self.conv1d = nn.Conv1d(
+#             in_channels=d_model,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             groups=d_model,
+#         )
+
+#         self.batch_norm = nn.BatchNorm1d(d_model)  # Thêm BatchNorm1d
+
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+
+#     def forward(self, x):
+#         x_pos = x.permute(0, 2, 1)  # Chuyển về (batch, d_model, seq_len)
+#         x_pos = self.conv1d(x_pos)
+#         x_pos = self.batch_norm(x_pos)  # Áp dụng BatchNorm
+#         x_pos = x_pos.permute(0, 2, 1)  # Đưa lại về (batch, seq_len, d_model)
+
+#         x = x + x_pos
+#         return self.dropout(x)
+
+
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout(p=dropout)
+
+#         # 1D Convolution với padding 'same' để giữ nguyên kích thước đầu vào
+#         self.conv1d = nn.Conv1d(
+#             in_channels=d_model,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             groups=d_model,
+#         )  # Nhóm để mỗi kênh xử lý riêng
+
+#         # Khởi tạo trọng số như Embedding
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+
+#     def forward(self, x):
+#         """
+#         x có shape: (batch_size, seq_len, d_model)
+#         """
+#         # Chuyển từ (batch, seq_len, d_model) → (batch, d_model, seq_len) để phù hợp với Conv1d
+#         x = x.permute(0, 2, 1)
+
+#         # Áp dụng Conv1D để học positional encoding
+#         x = self.conv1d(x)
+
+#         # Chuyển lại thành (batch, seq_len, d_model)
+#         x = x.permute(0, 2, 1)
+
+#         return self.dropout(x)
 
 
 class PositionalEncoding(nn.Module):

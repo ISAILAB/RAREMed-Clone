@@ -1,85 +1,64 @@
-# from fastapi import FastAPI
-# import torch
-# import dill
-# import numpy as np
-# import argparse
-# from pydantic import BaseModel
-
-# # from models.RAREMed import RAREMed
-# import warnings
-
-# warnings.filterwarnings(
-#     "ignore", category=UserWarning, module="torch.nn.modules.transformer"
-# )
-
-# # Khởi tạo FastAPI
-# app = FastAPI()
-
-# # Đường dẫn model và vocab cho MIMIC-III và MIMIC-IV
-# DATASET_PATHS = {
-#     "mimic-iii": {
-#         "model": r"/home/nguyenkhanh/Documents/AILAB/RAREMed/RAREMed-Clone/src/log/mimic-iii/RAREMed/log17_/Epoch_9_JA_0.5329_DDI_0.07024.model",
-#         "vocab": r"/home/nguyenkhanh/Documents/AILAB/RAREMed/RAREMed-Clone/data/output/mimic-iii/voc_final.pkl",
-#     },
-#     # "mimic-iv": {
-#     #     "model": r"C:\Users\CHuy\RAREMed\src\log\mimic-iv\RAREMed\log0_\Epoch_9_JA_0.4551_DDI_0.07102.model",
-#     #     "vocab": r"/home/nguyenkhanh/Documents/AILAB/RAREMed/RAREMed-Clone/data/output/mimic-iv/voc_final.pkl",
-#     # },
-# }
-
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# # Tạo args với các giá trị mặc định
-# args = argparse.Namespace(
-#     embed_dim=512,  # Kích thước embedding
-#     encoder_layers=3,
-#     nhead=4,
-#     dropout=0.3,
-#     adapter_dim=128,
-#     patient_seperate=False,  # Thêm thuộc tính này để tránh lỗi
-# )
-
-
-# # Hàm thêm từ mới vào vocab
-# def add_word(word, voc):
-#     if word not in voc.word2idx:
-#         voc.word2idx[word] = len(voc.word2idx)
-#         voc.idx2word[len(voc.idx2word)] = word
-#     return voc
-
-
-# # Định nghĩa input dữ liệu
-# class InputData(BaseModel):
-#     dataset: str  # "mimic-iii" hoặc "mimic-iv"
-#     diseases: list[str]
-#     procedures: list[str]
-
-
-# @app.post("/recommend")
-# def recommend_medications(data: InputData):
-#     """
-#     Nhận dataset, bệnh và thủ thuật, trả về danh sách thuốc được đề xuất.
-#     """
-#     if data.dataset not in DATASET_PATHS:
-#         return {"error": "Invalid dataset. Choose 'mimic-iii' or 'mimic-iv'."}
-
 import torch
-import dill
-from src.models.RAREMed import RAREMed
-# import sys
-# import os
-
-# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import torch.nn as nn
 
 
-# Load trained model
-model_path = "/home/nguyenkhanh/Documents/AILAB/RAREMed/RAREMed-Clone/src/log/mimic-iii/RAREMed/log17_/Epoch_9_JA_0.5329_DDI_0.07024.model"
-model = RAREMed.load_from_checkpoint(model_path)
+class LearnablePositionalEncoding(nn.Module):
+    def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
+        super(LearnablePositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout1d(p=dropout)
 
-# Load patient data (example input)
-patient_data = [{"ICD_CODE": ["401.9", "250.00"], "PRO_CODE": ["99.04"], "ATC3": []}]
+        self.conv1d = nn.Conv1d(
+            in_channels=1,
+            out_channels=d_model,
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
+            bias=False,
+        )
 
-# Make a prediction
-predictions = model.predict(patient_data)
+        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
 
-print("Recommended Medications:", predictions)
+        self.embeddings = nn.Embedding(max_len, d_model)
+
+        initrange = 0.1
+        self.conv1d.weight.data.uniform_(-initrange, initrange)
+        self.embeddings.weight.data.uniform_(-initrange, initrange)
+
+    def forward(self, x):
+        batch_size, seq_length, d_model = x.shape
+        print("Input x:\n", x)
+
+        pos = torch.arange(0, seq_length, device=x.device).int().unsqueeze(0)
+        print("Position indices:\n", pos)
+
+        pos_embed = self.embeddings(pos).expand(batch_size, seq_length, d_model)
+        print("Positional embeddings:\n", pos_embed)
+
+        print("Conv1D Kernel:\n", self.conv1d.weight)
+
+        x_reshaped = x.view(batch_size * seq_length, 1, d_model)
+        print("Reshaped x for Conv1D:\n", x_reshaped)
+
+        conv_out = self.conv1d(x_reshaped)
+        print("Output after Conv1D:\n", conv_out)
+
+        conv_out = self.global_avg_pool(conv_out)
+        print("Output after Global Avg Pooling:\n", conv_out)
+
+        conv_out = conv_out.view(batch_size, seq_length, d_model)
+        print("Reshaped output after pooling:\n", conv_out)
+
+        out = conv_out + pos_embed
+        print("Final output before dropout:\n", out)
+
+        return self.dropout(out)
+
+
+# Test
+d_model = 5
+seq_length = 3
+batch_size = 1
+
+x = torch.randn(batch_size, seq_length, d_model)
+model = LearnablePositionalEncoding(d_model)
+output = model(x)
+print("Final output after dropout:\n", output)

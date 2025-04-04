@@ -75,7 +75,7 @@ def get_args():
     parser.add_argument("--mask_prob", type=float, default=0, help="mask probability")
 
     parser.add_argument(
-        "--embed_dim", type=int, default=512, help="dimension of node embedding"
+        "--embed_dim", type=int, default=1024, help="dimension of node embedding"
     )  # 增大embedding_size, 加快训练速度，但增加了过拟合风险
     parser.add_argument(
         "--encoder_layers", type=int, default=3, help="number of encoder layers"
@@ -172,19 +172,19 @@ def evaluator(
         all_diseases, all_procedures, all_medications = [], [], []  # if test
 
         for adm in patient:  # every admission
-            print("diag voc: ", [diag_voc.idx2word[idx] for idx in adm[0]])
-            print("pro vx`oc: ", [pro_voc.idx2word[idx] for idx in adm[1]])
+            # print("diag voc: ", [diag_voc.idx2word[idx] for idx in adm[0]])
+            # print("pro vx`oc: ", [pro_voc.idx2word[idx] for idx in adm[1]])
             if args.test:
                 all_diseases.append(adm[0])
                 all_procedures.append(adm[1])
                 all_medications.append(adm[2])
 
             y_gt_tmp = np.zeros(voc_size[2])
-            y_gt_tmp[adm[2]] = 1    
+            y_gt_tmp[adm[2]] = 1
             y_gt.append(y_gt_tmp)  # correct medicine
             visit_weights.append(adm[3])
             visit_weights_patient.append(adm[3])
-        print("patient: ", patient)
+        # print("patient: ", patient)
         results, loss_ddi = model(patient)
         loss_bce, loss_multi = loss_func(voc_size, patient, results, device)
         loss_val_bce += loss_bce.item() / len_val
@@ -203,13 +203,29 @@ def evaluator(
             y_pred_label_tmp = np.where(y_pred_tmp == 1)[0]
             recommended_drugs = set(y_pred_label_tmp) | recommended_drugs  # ???
             y_pred_label.append(sorted(y_pred_label_tmp))
-            print("Med voc:", [med_voc.idx2word[idx] for idx in y_pred_label_tmp])
+            # print("Med voc:", [med_voc.idx2word[idx] for idx in y_pred_label_tmp])
+            # # print("Med Voc size: ", len(med_voc.idx2word))
             # print("Diag voc:", [diag_voc.idx2word[idx] for idx in y_pred_label_tmp])
+            # # print("Diag Voc len: ", [len(diag_voc.idx2word[idx]) for idx in y_pred_label_tmp])
+            # diagvec = [diag_voc.idx2word[idx] for idx in y_pred_label_tmp]
+            # procvec = [pro_voc.idx2word[idx] for idx in y_pred_label_tmp]
+
+            # print("Diag vec: ", diagvec)
+            # for idx in y_pred_label_tmp:
+            # print("Diag voc: ", idx)
+
+            # print("Total Input length", len(diagvec) + len(procvec))
+
+            # print("Diag voc len: ", len(diagvec))
+            # print("Proc voc len: ", len(procvec))
+
             # print("Pro voc:", [pro_voc.idx2word[idx] for idx in y_pred_label_tmp])
+            # print("Pro Voc len: ", len(pro_voc.idx2word))
+            # print("y_pred_label_tmp: ", y_pred_label_tmp)
 
             visit_cnt += 1
             med_cnt += len(y_pred_label_tmp)
-            print("recommended_drugs: ", recommended_drugs)
+            # print("recommended_drugs: ", recommended_drugs)
 
         smm_record.append(y_pred_label)  # 所有patient的y prediction
         adm_ja, adm_prauc, adm_avg_p, adm_avg_r, adm_avg_f1 = multi_label_metric(
@@ -228,9 +244,9 @@ def evaluator(
                 visit_weights_patient,
                 [adm_ja],
             ]
-            print("All diseases: ", all_diseases)
+            # print("All diseases: ", all_diseases)
             rec_results.append(records)
-            print("All records: ", records)
+            # print("All records: ", records)
 
         ja.append(adm_ja)
         prauc.append(adm_prauc)
@@ -243,7 +259,7 @@ def evaluator(
         rec_results_file = rec_results_path + "/" + "rec_results.pkl"
         dill.dump(rec_results, open(rec_results_file, "wb"))
         plot_path = rec_results_path + "/" + "pred_prob.jpg"
-        print("plot_path", plot_path)
+        # print("plot_path", plot_path)
         # plot_hist(all_pred_prob, plot_path)
         ja_result_file = rec_results_path + "/" + "ja_result.pkl"
         dill.dump(ja_visit, open(ja_result_file, "wb"))
@@ -522,6 +538,10 @@ def main(args):
     data_val = data[split_point : split_point + val_len]
     data_pretrain = data[: split_point + val_len]
     data_test = data[split_point + val_len :]
+    # print("Daataaa trainnn: ", len(data_train))
+
+    # for i in range(len(data_train)):
+    #     print("Data train: ", len(data_train[i]))
 
     # convert data into single visit format
     data_pretrain = [visit for patient in data_pretrain for visit in patient]
@@ -666,7 +686,7 @@ def main(args):
             enumerate(data_train), ncols=60, desc="finetune", total=len(data_train)
         ):  # every patient
             result, loss_ddi = model(patient)
-            print("Result: ", result)
+            # print("Result: ", result)
             loss_bce, loss_multi = loss_func(voc_size, patient, result, device)
             loss_all = (
                 (1 - args.weight_multi) * loss_bce
@@ -846,10 +866,10 @@ def main_nsp(
     save_dir,
     log_save_id,
 ):
-
     epoch_nsp = 0
     best_epoch_nsp, best_prc_nsp = 0, 0
     EPOCH = args.pretrain_epochs
+    # print("data valllllllllllllllllllllll: ", data_val)
     for epoch in range(EPOCH):
         epoch += 1
         print(
@@ -861,7 +881,7 @@ def main_nsp(
         loss_train = 0
         for batch in tqdm(
             data_train, ncols=60, desc="pretrain_nsp", total=len(data_train)
-        ):  # every patient
+        ):  # evzery patient
             nsp_batch, nsp_target = nsp_batch_data(batch, data, neg_sample_rate=1)
             result = model(nsp_batch, mode="pretrain_nsp")
             loss = F.cross_entropy(
