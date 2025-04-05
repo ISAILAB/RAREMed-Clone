@@ -75,7 +75,7 @@ def get_args():
     parser.add_argument("--mask_prob", type=float, default=0, help="mask probability")
 
     parser.add_argument(
-        "--embed_dim", type=int, default=1024, help="dimension of node embedding"
+        "--embed_dim", type=int, default=512, help="dimension of node embedding"
     )  # 增大embedding_size, 加快训练速度，但增加了过拟合风险
     parser.add_argument(
         "--encoder_layers", type=int, default=3, help="number of encoder layers"

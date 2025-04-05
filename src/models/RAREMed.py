@@ -8,19 +8,24 @@ from torch.autograd import Variable
 import math
 
 
-# class LearnablePositionalEncoding(nn.Module):
-#     def __init__(self, d_model, dropout=0, max_len=1000):
-#         super(LearnablePositionalEncoding, self).__init__()
-#         self.dropout = nn.Dropout(p=dropout)
-#         self.embeddings = nn.Embedding(max_len, d_model)
+class LearnablePositionalEncoding(nn.Module):
+    def __init__(self, d_model, dropout=0, max_len=1000):
+        super(LearnablePositionalEncoding, self).__init__()
+        self.dropout = nn.Dropout(p=dropout)
+        self.embeddings = nn.Embedding(max_len, d_model)
+        self.d_model = d_model
 
-#         initrange = 0.1
-#         self.embeddings.weight.data.uniform_(-initrange, initrange)
+        initrange = 0.1
+        self.embeddings.weight.data.uniform_(-initrange, initrange)
+        self.W = nn.Parameter(torch.randn(d_model, d_model)) 
 
-#     def forward(self, x):
-#         pos = torch.arange(0, x.size(1), device=x.device).int().unsqueeze(0)
-#         x = x + self.embeddings(pos).expand_as(x)
-#         return x
+    def forward(self, x):
+        pos = torch.arange(0, x.size(1), device=x.device).int().unsqueeze(0)
+        # weighted_matrix = torch.randn(self.d_model, self.d_model).to(x.device)
+        multiplied_matrix = torch.matmul(x, self.W)
+        position_embedding = self.embeddings(pos).expand_as(x)
+        x = multiplied_matrix + position_embedding
+        return self.dropout(x)
 
 # Ngang theo chiều d_model, mỗi kênh sẽ học một positional encoding riêng
 # class LearnablePositionalEncoding(nn.Module):
@@ -126,46 +131,48 @@ import math
 #         return self.dropout(out)
 
 
-class LearnablePositionalEncoding(nn.Module):
-    def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
-        super(LearnablePositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout1d(p=dropout)
+# class LearnablePositionalEncoding(nn.Module):
+#     def __init__(self, d_model, kernel_size=3, dropout=0, max_len=1000):
+#         super(LearnablePositionalEncoding, self).__init__()
+#         self.dropout = nn.Dropout1d(p=dropout)
 
-        self.conv1d = nn.Conv1d(
-            in_channels=1,
-            out_channels=d_model,
-            kernel_size=kernel_size,
-            padding=kernel_size // 2,
-            # bias=False,
-        )
+#         self.conv1d = nn.Conv1d(
+#             in_channels=1,
+#             out_channels=d_model,
+#             kernel_size=kernel_size,
+#             padding=kernel_size // 2,
+#             # bias=False,
+#         )
 
-        self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
+#         self.global_avg_pool = nn.AdaptiveAvgPool1d(1)
 
-        # self.embeddings = nn.Embedding(max_len, d_model)
+#         # self.embeddings = nn.Embedding(max_len, d_model)
 
-        initrange = 0.1
-        self.conv1d.weight.data.uniform_(-initrange, initrange)
-        # self.embeddings.weight.data.uniform_(-initrange, initrange)
+#         initrange = 0.1
+#         self.conv1d.weight.data.uniform_(-initrange, initrange)
+#         # self.embeddings.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, x):
-        batch_size, seq_length, d_model = x.shape
+#     def forward(self, x):
+#         batch_size, seq_length, d_model = x.shape
 
-        # pos = torch.arange(0, seq_length, device=x.device).int().unsqueeze(0)
-        # pos_embed = self.embeddings(pos).expand(batch_size, seq_length, d_model)
+#         # pos = torch.arange(0, seq_length, device=x.device).int().unsqueeze(0)
+#         # pos_embed = self.embeddings(pos).expand(batch_size, seq_length, d_model)
 
-        x_reshaped = x.view(batch_size * seq_length, 1, d_model)
-        conv_out = self.conv1d(x_reshaped)
-        conv_out = self.global_avg_pool(conv_out)
-        conv_out = conv_out.view(batch_size, seq_length, d_model)
+#         x_reshaped = x.view(batch_size * seq_length, 1, d_model)
+#         conv_out = self.conv1d(x_reshaped)
+#         conv_out = self.global_avg_pool(conv_out)
+#         conv_out = conv_out.view(batch_size, seq_length, d_model)
 
-        x_reshaped_2 = conv_out.view(batch_size * seq_length, 1, d_model)
-        conv_out_2 = self.conv1d(x_reshaped_2)
-        conv_out_2 = self.global_avg_pool(conv_out_2)
-        conv_out_2 = conv_out_2.view(batch_size, seq_length, d_model)
+#         x_reshaped_2 = conv_out.view(batch_size * seq_length, 1, d_model)
+#         conv_out_2 = self.conv1d(x_reshaped_2)
+#         conv_out_2 = self.global_avg_pool(conv_out_2)
+#         conv_out_2 = conv_out_2.view(batch_size, seq_length, d_model)
 
-        out = conv_out + conv_out_2
+#         out = conv_out + conv_out_2
 
-        return self.dropout(out)
+#         return self.dropout(out)
+
+
 
 
 # class LearnablePositionalEncoding(nn.Module):
