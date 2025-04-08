@@ -10,3 +10,5 @@ src/log/
 */__pycache__/
 *.pyc
 .qodo
+extractor/many_output/*.csv
+extractor/outputs/*.csv
